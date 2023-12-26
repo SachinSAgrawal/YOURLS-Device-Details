@@ -1,2 +1,2 @@
 # Device Details
-A Your Own URL Shortener (YOURLS) plugin based off of Tacoded's IP Click Details plugin that makes use of WhichBrowser Parser in PHP to display information about the click, including IP, user-agent, device, browser, location, and time. Make sure to install WhichBrowser using `composer require whichbrowser/parser`.
+A Your Own URL Shortener (YOURLS) plugin based on Tacoded's IP Click Details plugin. This plugin makes use of WhichBrowser's Parser to display information about the click, including IP, user-agent, device, browser, location, and time. Make sure to first install WhichBrowser using `composer require whichbrowser/parser`.
