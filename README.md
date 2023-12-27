@@ -9,6 +9,8 @@ This plugin uses WhichBrowser's Parser to display IP, user-agent, device, browse
 
 ![screenshot](screenshot.png)
 
+Check it out on my own website: [ipgrabber.pro](https://ipgrabber.pro)
+
 ## Installation
 
 1. First install WhichBrowser using `composer require whichbrowser/parser`.
