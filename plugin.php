@@ -3,7 +3,7 @@
 Plugin Name: Device Details
 Plugin URI: https://github.com/SachinSAgrawal/YOURLS-Device-Details
 Description: Parses user-agent using a custom library to display information about IP and device
-Version: 1.1
+Version: 1.2
 Author: Sachin Agrawal
 Author URI: https://sachinagrawal.me
 */
@@ -72,14 +72,14 @@ function ip_detail_page($shorturl) {
             $gmt_offset = timezone_offset_to_gmt_offset($timezone_offset);
             
             // Debugging: Print raw data to browser console
-            echo '<script>';
-            echo 'console.log(' . json_encode($wbresult) . ');';
-            echo '</script>';
+            // echo '<script>';
+            // echo 'console.log(' . json_encode($wbresult) . ');';
+            // echo '</script>';
 
             $outdata .= '<tr'.$me.'><td>'.$query_result->click_time.'</td>
                         <td>'.$local_time.'</td>
                         <td>'.$gmt_offset.'</td>
-						<td>'.$query_result->click_id.'</td><td>'.$query_result->country_code.'</td>
+						<td>'.$query_result->country_code.'</td>
 						<td>'.$ip_info['city'].'</td>
 						<td><a href="https://who.is/whois-ip/ip-address/'.$query_result->ip_address.'" target="blank">'.$query_result->ip_address.'</a>'.$me2.'</td>
 						<td>'.$ua.'</td>
@@ -93,7 +93,7 @@ function ip_detail_page($shorturl) {
 						</tr>';
         }
 
-        echo '<table  border="1" cellpadding="5" style="margin-top:25px;"><tr><td width="80">Timestamp</td><td>Local Time</td><td>Timezone</td><td>Click ID</td><td>Country</td><td>City</td>
+        echo '<table  border="1" cellpadding="5" style="margin-top:25px;"><tr><td width="80">Timestamp</td><td>Local Time</td><td>Timezone</td><td>Country</td><td>City</td>
 				<td>IP Address</td><td>User Agent</td><td>Browser Version</td><td>OS Version</td><td>Device Model</td>
 				<td>Device Vendor</td><td>Device Type</td><td>Engine</td><td>Referrer</td></tr>' . $outdata . "</table><br>\n\r";
     }
