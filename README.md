@@ -1,11 +1,11 @@
 # Device Details
 
-A plugin to display information about each click, based on Tacoded's IP Click Details.
-Requires Your Own URL Shortener [(YOURLS)](https://yourls.org) `v1.9.2` and above.
+A plugin to display information about each click, based on Tacoded's IP Click Details. <br>
+Requires Your Own URL Shortener ([YOURLS](https://yourls.org)) `v1.9.2` and above.
 
 ## Usage
 
-This plugin makes use of WhichBrowser's Parser to display information about the click, including IP, user-agent, device, browser, location, and time.
+This plugin uses WhichBrowser's Parser to display IP, user-agent, device, browser, location, and time.
 
 ![screenshot](screenshot.png)
 
