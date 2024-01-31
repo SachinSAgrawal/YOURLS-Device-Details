@@ -3,7 +3,7 @@
 Plugin Name: Device Details
 Plugin URI: https://github.com/SachinSAgrawal/YOURLS-Device-Details
 Description: Parses user-agent using a custom library to display information about IP and device
-Version: 2.0
+Version: 2.1
 Author: Sachin Agrawal
 Author URI: https://sachinagrawal.me
 */
@@ -53,7 +53,7 @@ function parse_referrer_details($referrer) {
     $details['Referrer'] = $parts[0] ?? 'direct';
 
     if (isset($referrer)) {
-        $pattern = '/Ori:(\w+).*Lang:([\w-]+).*Touch:(\w+).*Bat:(\d+%|undefined).*Incog:(\w+).*AdBlock:(\w+)(?:.*Size:([\w]+x[\w]+))?/';
+        $pattern = '/Ori:([-\w]+).*Lang:([\w-]+).*Touch:(\w+).*Bat:(\d+%|undefined).*Incog:(\w+).*AdBlock:(\w+)(?:.*Size:([\w]+x[\w]+))?/';
         preg_match($pattern, $referrer, $matches);
 
         if ($matches) {
@@ -108,39 +108,41 @@ function ip_detail_page($shorturl) {
             // Parse the referrer that contains the additional info
             $referrer_details = parse_referrer_details($query_result->referrer);
             
-            $localtimeInfo = $gmt_offset . '<br>' . $local_time;
+            $local_time_info = $gmt_offset . '<br>' . $local_time;
             
-            $locationInfo = $ip_info['city']. ', ' . $query_result->country_code;
+            $location_info = $ip_info['city']. ', ' . $ip_info['region']. ', ' . $query_result->country_code;
             
-            $browserOsInfo = $wbresult->browser->name . ' ' . $wbresult->browser->version->value;
-            $browserOsInfo .= $wbresult->os->name ? '<br>' . $wbresult->os->name. ' ' . $wbresult->os->version->value : '';
+            $browser_os_info = $wbresult->browser->name . ' ' . $wbresult->browser->version->value;
+            $browser_os_info .= $wbresult->os->name ? '<br>' . $wbresult->os->name. ' ' . $wbresult->os->version->value : '';
                              
-            $deviceInfo = $wbresult->device->type;
-            $deviceInfo .= $wbresult->device->manufacturer ? '<br>' . $wbresult->device->manufacturer : '';
-            $deviceInfo .= $wbresult->device->model ? '<br>' . $wbresult->device->model : '';
+            $device_info = $wbresult->device->type;
+            $device_info .= $wbresult->device->manufacturer ? '<br>' . $wbresult->device->manufacturer : '';
+            $device_info .= $wbresult->device->model ? '<br>' . $wbresult->device->model : '';
                           
-            $interactionInfo = '';
-            $orientation = $referrer_details['Orientation'] === 'undefined' ? 'undef' : $referrer_details['Orientation'];
-            $interactionInfo .= $orientation ? 'Rot: ' . $orientation : '';
-            $interactionInfo .= $referrer_details['Touch'] ? '<br>Touch: ' . $referrer_details['Touch'] : '';
-            $interactionInfo .= $referrer_details['Size'] ? '<br>' . $referrer_details['Size'] : '';
+            $interaction_info = '';
+            $orientation = is_numeric($referrer_details['Orientation']) ? $referrer_details['Orientation'] : '';
+            $interaction_info .= isset($orientation) && $orientation !== '' ? 'Rot: ' . $orientation : '';
+            $interaction_info .= $referrer_details['Touch'] ? '<br>Touch: ' . $referrer_details['Touch'] : '';
+            $interaction_info .= $referrer_details['Size'] ? '<br>' . $referrer_details['Size'] : '';
             
             // Debugging: Print raw data to browser console
-            // echo '<script>';
-            // echo 'console.log(' . json_encode($wbresult) . ');';
-            // echo '</script>';
+            /*
+            echo '<script>';
+            echo 'console.log(' . json_encode($ip_info) . ');';
+            echo '</script>';
+            */
 
             $outdata .= '<tr'.$me.'>
                         <td>'.$query_result->click_time.'</td>
-                        <td>'.$localtimeInfo.'</td>
-						<td>'.$locationInfo.'</td>
+                        <td>'.$local_time_info.'</td>
+						<td>'.$location_info.'</td>
 						<td><a href="https://who.is/whois-ip/ip-address/'.$query_result->ip_address.'" target="blank">'.$query_result->ip_address.'</a>'.$me2.'</td>
 						<td>'.$ua.'</td>
-						<td>'.$browserOsInfo.'</td>
-						<td>'.$deviceInfo.'</td>
+						<td>'.$browser_os_info.'</td>
+						<td>'.$device_info.'</td>
 						<td>'.$wbresult->engine->name.'</td>
 						<td>'.$referrer_details['Referrer'].'</td>
-						<td>'.$interactionInfo.'</td>
+						<td>'.$interaction_info.'</td>
                         <td>'.$referrer_details['Language'].'</td>
                         <td>'.$referrer_details['Battery'].'</td>
                         <td>'.$referrer_details['Incognito'].'</td>
