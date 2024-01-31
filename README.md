@@ -14,10 +14,11 @@ This plugin uses WhichBrowser's Parser to display IP, user-agent, device, browse
 
 ## Version 2
 In addition to everything in version 1, as promised, this update provides more tracked stats.  <br>
-By forcing a Javascript redirect, device battery, orientation, language, and screen info can be logged.  <br>
+Things like device battery, orientation, language, and screen info can be logged with some Javascript.  <br>
 However, for this to work, the `functions.php` file needs to be modified, which is not recommended.  <br>
 In fact, "hacking" core files is essentially [banned](https://yourls.org/docs/development/dont-hack-core), but I can't figure out how to do it otherwise. <br>
-I have also not really tested this super rigorously, so if you find any bugs, open up an issue!
+My modifications are not massive changes. Feel free to check them out with [diffchecker](https://www.diffchecker.com/uf43m35C/) if desired. <br>
+I have also not really tested this super rigorously, so if you find any bugs, feel free to open an issue!
 
 ## Installation
 
