@@ -7,18 +7,29 @@ Requires Your Own URL Shortener ([YOURLS](https://yourls.org)) `v1.9.2` and abov
 
 ![screenshot](screenshot.png)
 
-This plugin uses WhichBrowser's Parser to display IP, user-agent, device, browser, location, and time. <br>
-Check it out on my own website: [ipgrabber.pro](https://ipgrabber.pro). I use Sleeky's front-end, but the default should work. <br>
-I might make a second version with more tracked stats, like device battery, orientation, language, etc.
+Check it out on my own website: [ipgrabber.pro](https://ipgrabber.pro). I use Sleeky's front-end, but the default should work.
+
+## Version 1
+This plugin uses WhichBrowser's Parser to display IP, user-agent, device, browser, location, and time.
+
+## Version 2
+In addition to everything in version 1, as promised, this update provides more tracked stats.  <br>
+By forcing a Javascript redirect, device battery, orientation, language, and screen info can be logged.  <br>
+However, for this to work, the `functions.php` file needs to be modified, which is not recommended.  <br>
+In fact, "hacking" core files is essentially [banned](https://yourls.org/docs/development/dont-hack-core) from plugins, but I'm not a good enough coder.  <br>
+I have also not really tested this super rigorously, so if you find any bugs, open up an issue!
 
 ## Installation
 
 1. Install WhichBrowser to the root using `composer require whichbrowser/parser`.
-2. In `/user/plugins`, create a new folder named `device-details`.
-3. Download this git repo and drop the unzipped files in that directory.
-4. Go to the Plugins admin page (eg. `http://sho.rt/admin/plugins.php`) and activate it.
-5. Even if the admin area is private, make the link stats page public.
-6. Do this by adding `define('YOURLS_PRIVATE_INFOS', false);` to `config.php`.
+2. It is possible that you will have the change the path to `'vendor/autoload.php'`.
+3. In `/user/plugins`, create a new folder named `device-details`.
+4. Choose what version (see the sections above) you want and navigate to the right folder.
+5. Download the `plugin.php` file from this git repo and drop it into step 3's directory.
+6. If you are using version 2, make sure to replace `functions.php` with the provided one.
+7. Go to the Plugins admin page (eg. `http://sho.rt/admin/plugins.php`) and activate it.
+8. Even if the admin area is private, make the link stats page public.
+9. Do this by adding `define('YOURLS_PRIVATE_INFOS', false);` to `config.php`.
 
 ## License
 
