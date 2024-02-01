@@ -9,12 +9,12 @@ Author URI: https://sachinagrawal.me
 */
 
 // Load the user-agent parsing library WhichBrowser
-require 'vendor/autoload.php';
+require '/home/afrehpfq/mysmall.site/includes/vendor/autoload.php';
 
 yourls_add_action('post_yourls_info_stats', 'ip_detail_page');
 
 function get_ip_info($ip) {
-    $url = "https://ipinfo.io/{$ip}/json";
+    $url = "https://ipinfo.io/{$ip}/json?token=a360ac5bbb8e16";
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     $response = curl_exec($ch);
@@ -122,13 +122,15 @@ function ip_detail_page($shorturl) {
             $interaction_info = '';
             $orientation = is_numeric($referrer_details['Orientation']) ? $referrer_details['Orientation'] : '';
             $interaction_info .= isset($orientation) && $orientation !== '' ? 'Rot: ' . $orientation : '';
-            $interaction_info .= $referrer_details['Touch'] ? '<br>Touch: ' . $referrer_details['Touch'] : '';
+            $interaction_info .= $referrer_details['Touch'] ? ($orientation !== '' ? '<br>' : '') . 'Touch: ' . $referrer_details['Touch'] : '';
             $interaction_info .= $referrer_details['Size'] ? '<br>' . $referrer_details['Size'] : '';
             
             // Debugging: Print raw data to browser console
             /*
             echo '<script>';
-            echo 'console.log(' . json_encode($ip_info) . ');';
+            echo 'console.log(' . json_encode($wbresult) . ');';
+            echo 'console.log(' . json_encode($ip_info)  . ');';
+            echo 'console.log(' . json_encode($referrer_details) . ');';
             echo '</script>';
             */
 
