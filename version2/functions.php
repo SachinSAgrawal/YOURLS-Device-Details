@@ -254,7 +254,7 @@ function yourls_redirect( $location, $code = 301 ) {
         return 1;
 	}
 	*/
-	// By commenting out the section above you (hopefully) force a Javascript redirection which logs more info
+	// By commenting out the section above hopefully it forces a Javascript redirection which allows for logging more info
 
 	// Headers sent : redirect with JS if not in CLI
 	if( php_sapi_name() !== 'cli') {
@@ -409,70 +409,7 @@ function yourls_redirect_javascript( $location, $dontwait = true ) {
         $message = yourls_s( 'If you are not redirected after 10 seconds, please <a href="%s">click here</a>.', $location );
         echo <<<REDIR
 		<script type="text/javascript">
-    		window.location="$location";
-    		
-            // Orientation
-            var orientation = window.orientation;
-            //console.log("Orientation: ", orientation);
-        
-            // Language
-            var language = navigator.language;
-            //console.log("Browser Language: ", language);
-        
-            // Touch Screen
-            var isTouchScreen =
-                "ontouchstart" in window || navigator.maxTouchPoints > 0;
-            //console.log("Touch Screen: ", (isTouchScreen ? "Yes" : "No"));
-        
-            // Screen Size
-            var width = screen.width;
-            var height = screen.height;
-            //console.log("Screen Size: ", width, "x", height);
-        
-            // Incognito Mode
-            var isIncognito = false;
-            try {
-                isIncognito = window.sessionStorage.getItem("test");
-                window.sessionStorage.setItem("test", "test");
-            } catch (e) {
-                isIncognito = true;
-            }
-            //console.log("Incognito Mode: ", (isIncognito ? "Yes" : "No"));
-        
-            // Ad Blocker
-            var adBlockEnabled = false;
-            async function detectAdBlock() {
-                const googleAdUrl = "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js";
-                try {
-                    await fetch(new Request(googleAdUrl)).catch(_ => adBlockEnabled = true);
-                } catch (e) {
-                    adBlockEnabled = true;
-                } finally {
-                    //console.log("AdBlock Enabled: ", (adBlockEnabled ? "Yes" : "No"));
-                }
-            }
-            detectAdBlock();
-        
-            // Battery
-            navigator.getBattery().then((battery) => {
-                var batteryLevel = battery.level * 100;
-                //console.log("Battery Level: ", batteryLevel, "%");
-        
-                // Construct deviceData string inside the battery promise
-                var deviceData =
-                    "Ori:" + orientation +
-                    " Lang:" + language +
-                    " Touch:" + (isTouchScreen ? "Yes" : "No") +
-                    " Bat:" + batteryLevel +
-                    "% Incog:" + (isIncognito ? "Yes" : "No") +
-                    " AdBlock:" + (adBlockEnabled ? "Yes" : "No") +
-                    " Size:" + width + "x" + height;
-        
-                //console.log(deviceData);
-        
-                // Set a cookie with the device information to be fetched later
-                document.cookie = "deviceinfo=" + encodeURIComponent(deviceData);
-            });
+    	window.location="$location";
         </script>
         
         <small>$message</small>
@@ -578,12 +515,98 @@ function yourls_log_redirect( $keyword ) {
     
     $sanitized_keyword = yourls_sanitize_keyword($keyword);
     
+    echo <<<EOD
+    <script>
+        // Orientation
+        var orientation = window.orientation;
+        //console.log("Orientation: ", orientation);
+    
+        // Language
+        var language = navigator.language;
+        //console.log("Browser Language: ", language);
+    
+        // Touch Screen
+        var isTouchScreen =
+            "ontouchstart" in window || navigator.maxTouchPoints > 0;
+        //console.log("Touch Screen: ", (isTouchScreen ? "Yes" : "No"));
+    
+        // Screen Size
+        var width = screen.width;
+        var height = screen.height;
+        //console.log("Screen Size: ", width, "x", height);
+    
+        // Incognito Mode
+        var isIncognito = false;
+        try {
+            isIncognito = window.sessionStorage.getItem("test");
+            window.sessionStorage.setItem("test", "test");
+        } catch (e) {
+            isIncognito = true;
+        }
+        //console.log("Incognito Mode: ", (isIncognito ? "Yes" : "No"));
+    
+        // Ad Blocker
+        var adBlockEnabled = false;
+        async function detectAdBlock() {
+            const googleAdUrl = "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js";
+            try {
+                await fetch(new Request(googleAdUrl)).catch(_ => adBlockEnabled = true);
+            } catch (e) {
+                adBlockEnabled = true;
+            } finally {
+                //console.log("AdBlock Enabled: ", (adBlockEnabled ? "Yes" : "No"));
+            }
+        }
+        detectAdBlock();
+        
+        if ('getBattery' in navigator) {
+            // The getBattery() API is supported
+            navigator.getBattery().then((battery) => {
+                var batteryLevel = battery.level * 100;
+                //console.log("Battery Level: ", batteryLevel, "%");
+        
+                // Construct deviceData string inside the battery promise
+                var deviceData =
+                    "Ori:" + orientation +
+                    " Lang:" + language +
+                    " Touch:" + (isTouchScreen ? "Yes" : "No") +
+                    " Bat:" + batteryLevel +
+                    "% Incog:" + (isIncognito ? "Yes" : "No") +
+                    " AdBlock:" + (adBlockEnabled ? "Yes" : "No") +
+                    " Size:" + width + "x" + height;
+        
+                //console.log(deviceData);
+        
+                // Set a cookie with the device information to be fetched later
+                document.cookie = "deviceinfo=" + encodeURIComponent(deviceData) + "; path=/; SameSite=Lax; Secure";
+            });
+        } else {
+            // The getBattery() API is not supported
+            
+            // Construct the deviceData string
+            var deviceData =
+                "Ori:" + orientation +
+                " Lang:" + language +
+                " Touch:" + (isTouchScreen ? "Yes" : "No") +
+                " Bat:undefined" +
+                " Incog:" + (isIncognito ? "Yes" : "No") +
+                " AdBlock:" + (adBlockEnabled ? "Yes" : "No") +
+                " Size:" + width + "x" + height;
+    
+            //console.log(deviceData);
+    
+            // Set a cookie with the device information to be fetched later
+            document.cookie = "deviceinfo=" + encodeURIComponent(deviceData) + "; path=/; SameSite=Lax; Secure";
+        }
+    </script>
+EOD;
+    
     if (isset($_COOKIE['deviceinfo'])) {
         // Retrieve the device information from the cookie
         $deviceinfo = $_COOKIE['deviceinfo'];
-
-        // Reset the cookie or unset it if needed
-        setcookie('deviceinfo', '', time() - 3600); // expire the cookie
+    
+        // Unset or reset the cookie
+        setcookie('deviceinfo', '', time() - 3600, '/'); // expire the cookie
     }
     
     // Get the real referrer
@@ -591,6 +614,11 @@ function yourls_log_redirect( $keyword ) {
     
     // Append the device info to it
     $referrer_device = $referrer . " - " . $deviceinfo;
+    
+    // Debugging: Print raw data to browser console
+    echo '<script>';
+    echo 'console.log("' . $referrer_device . '");';
+    echo '</script>';
     
     $binds = [
         'now' => date( 'Y-m-d H:i:s' ),
@@ -601,7 +629,7 @@ function yourls_log_redirect( $keyword ) {
         'location' => yourls_geo_ip_to_countrycode($ip),
     ];
 
-    // Try and log. An error probably means a concurrency problem: just skip the logging
+    // Try and log. An error probably means a concurrency problem : just skip the logging
     try {
         $result = yourls_get_db()->fetchAffected("INSERT INTO `$table` (click_time, shorturl, referrer, user_agent, ip_address, country_code) VALUES (:now, :keyword, :referrer, :ua, :ip, :location)", $binds );
     } catch (Exception $e) {
