@@ -17,7 +17,7 @@ In addition to everything in version 1, as promised, this update provides more t
 Things like device battery, orientation, language, and screen info can be logged with some Javascript.  <br>
 However, for this to work, the `functions.php` file needs to be modified, which is not recommended.  <br>
 In fact, "hacking" core files is essentially [banned](https://yourls.org/docs/development/dont-hack-core), but I do not know how to do it otherwise. <br>
-My modifications are not anything massive. Feel free to check them out on [diffchecker.com](https://www.diffchecker.com/uf43m35C/) if desired. <br>
+My modifications are not anything massive. Feel free to check them out on [diffchecker.com](https://www.diffchecker.com/UvnSxpDU/) if desired. <br>
 I have also not really tested this super rigorously, so if you find any bugs, feel free to open an issue!
 
 ## Installation
