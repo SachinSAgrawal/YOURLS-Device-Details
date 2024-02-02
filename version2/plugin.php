@@ -9,7 +9,7 @@ Author URI: https://sachinagrawal.me
 */
 
 // Load the user-agent parsing library WhichBrowser
-require '/home/afrehpfq/mysmall.site/includes/vendor/autoload.php';
+require 'vendor/autoload.php';
 
 yourls_add_action('post_yourls_info_stats', 'ip_detail_page');
 
