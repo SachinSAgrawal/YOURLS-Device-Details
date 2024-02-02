@@ -14,7 +14,7 @@ require '/home/afrehpfq/mysmall.site/includes/vendor/autoload.php';
 yourls_add_action('post_yourls_info_stats', 'ip_detail_page');
 
 function get_ip_info($ip) {
-    $url = "https://ipinfo.io/{$ip}/json?token=a360ac5bbb8e16";
+    $url = "https://ipinfo.io/{$ip}/json";
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     $response = curl_exec($ch);
