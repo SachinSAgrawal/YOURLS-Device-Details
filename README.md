@@ -23,7 +23,6 @@ I am aware that by using cookies to store the data, the data will always be one 
 I am looking into solutions, but if anyone else can solve it for me, that would be greatly appreciated.
 
 ## Installation
-
 1. Install WhichBrowser to the root using `composer require whichbrowser/parser`.
 2. It is possible that you will have the change the path of `vendor/autoload.php`.
 3. In `/user/plugins`, create a new folder named `device-details`.
@@ -35,5 +34,4 @@ I am looking into solutions, but if anyone else can solve it for me, that would 
 9. Do this by adding `define('YOURLS_PRIVATE_INFOS', false);` to `config.php`.
 
 ## License
-
 This package is licensed under the [MIT License](LICENSE.txt).
