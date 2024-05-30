@@ -19,12 +19,19 @@ However, for this to work, the `functions.php` file needs to be modified, which 
 In fact, "hacking" core files is essentially [banned](https://yourls.org/docs/development/dont-hack-core), but I do not know how to do it otherwise. <br>
 My modifications are not anything massive. Feel free to check them out on [diffchecker.com](https://www.diffchecker.com/UvnSxpDU/) if desired. <br>
 I have also not really tested this super rigorously, so if you find any bugs, feel free to open an issue! <br>
-I am aware that by using cookies to store the data, the data will always be one click behind. <br>
-I am looking into solutions, but if anyone else can solve it for me, that would be greatly appreciated.
+I'm aware that by using cookies to store the data, the data will always be one click behind. 
+
+## Version 3
+This version is currently in development. The main change is that it does not "hack" core files. <br>
+It still has all of the functionality of the previous version with some added features as well. <br>
+Firstly, there is a page under manage plugins that allows you to input your own [ipinfo.io](https://ipinfo.io) API token. <br>
+Secondly, click data is transferred to the backend with the POST method so it is always accurate. <br>
+I will publish it once I have more time to finish programming it but it might take me some time. <br>
+If you would like to help me, feel free to open up a new issue as well! I would appreciate any help.
 
 ## Installation
 1. Install WhichBrowser to the root using `composer require whichbrowser/parser`.
-2. It is possible that you will have the change the path of `vendor/autoload.php`.
+2. It is possible that you will have to change the path of `vendor/autoload.php`.
 3. In `/user/plugins`, create a new folder named `device-details`.
 4. Choose what version you want (see the two sections above to decide).
 5. Download the right `plugin.php` file from this git repo and drop it into step 3's directory.
@@ -32,6 +39,8 @@ I am looking into solutions, but if anyone else can solve it for me, that would 
 7. Go to the Plugins admin page (eg. `http://sho.rt/admin/plugins.php`) and activate it.
 8. Even if the admin area is private, you should make the link stats page public.
 9. Do this by adding `define('YOURLS_PRIVATE_INFOS', false);` to `config.php`.
+
+I got a request to make this compatible with the [Download Plugin](https://github.com/krissss/yourls-download-plugin) plugin, so I will look more into it. Version 1 should be compatible, although it looks like I need to configure the branches of this repository a little bit differently.
 
 ## License
 This package is licensed under the [MIT License](LICENSE.txt).
