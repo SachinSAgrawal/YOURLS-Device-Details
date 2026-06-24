@@ -1,46 +1,55 @@
 # Device Details [![Listed in Awesome YOURLS!](https://img.shields.io/badge/Awesome-YOURLS-C5A3BE)](https://github.com/YOURLS/awesome-yourls/)
 
-A plugin to display information about each click, based on Tacoded's IP Click Details. <br>
-Requires Your Own URL Shortener ([YOURLS](https://yourls.org)) `v1.9.2` and above.
+This plugin was originally based on Tacoded's now-delted IP Click Details. <br>
+Developed for Your Own URL Shortener ([YOURLS](https://yourls.org)) `v1.9.2` and above.
 
-## Usage
+## Demonstration
 
 ![screenshot](screenshot.png)
 
-Check it out on my own website: [ipgrabber.pro](https://ipgrabber.pro). I use Sleeky's front-end, but the default should work.
+Check it out on my own website: [yourls-device-details.dreamhosters.com](https://yourls-device-details.dreamhosters.com/). <br>
+I use the Sleeky theme, but the default works, although the table columns may get smushed.
 
-## Version 1
-This plugin uses WhichBrowser's Parser to display IP, user-agent, device, browser, location, and time.
+## Usage
 
-## Version 2
-In addition to everything in version 1, as promised, this update provides more tracked stats.  <br>
-Things like device battery, orientation, language, and screen info can be logged with some Javascript.  <br>
-However, for this to work, the `functions.php` file needs to be modified, which is not recommended.  <br>
-In fact, "hacking" core files is essentially [banned](https://yourls.org/docs/development/dont-hack-core), but I do not know how to do it otherwise. <br>
-My modifications are not anything massive. Feel free to check them out on [diffchecker.com](https://www.diffchecker.com/UvnSxpDU/) if desired. <br>
-I have also not really tested this super rigorously, so if you find any bugs, feel free to open an issue! <br>
-I'm aware that by using cookies to store the data, the data will always be one click behind. 
+Please make sure that you are following all local privacy laws while using this plugin.
 
-## Version 3
-This version is currently in development. The main change is that it does not "hack" core files. <br>
-It still has all of the functionality of the previous version with some added features as well. <br>
-Firstly, there is a page under manage plugins that allows you to input your own [ipinfo.io](https://ipinfo.io) API token. <br>
-Secondly, click data is transferred to the backend with the POST method so it is always accurate. <br>
-I will publish it once I have more time to finish programming it but it might take me some time. <br>
-If you would like to help me, feel free to open up a new issue as well! I would appreciate any help.
+### Version 1
+This version uses WhichBrowser to parse the user-agent for device and browser information. <br>
+It also fetches the location of the click and local time based off of the IP address. <br>
+The information is displayed in a table in the stats page of each link below the click count graph. <br>
+If you really want to use this version, please check out the relevant installation instructions. <br>
+All relevant files are in the `version1` folder, anything else is for the most recent version (see below).
+
+### Version 2
+This version contains everything in version 1, but also tracks many more stats for device fingerprinting. <br>
+Things like device battery, orientation, language, and screen info can be collected with some Javascript. <br>
+However, it is no longer available (i.e. removed from this repository) because it [hacked core files](https://yourls.org/docs/development/dont-hack-core). <br>
+Additionally, the way the data was transferred from the browser meant that it was always one click behind.
+
+### Version 3
+This version tracks everything from version 3, but does it does so without hacking core files. <br>
+Namely, the normal logging is skipped and the client side information is sent to yourls_log via AJAX. <br>
+I cannot take credit for this, as it was [Loganathan](https://github.com/logusivam) who gave me the reference code. <br>
+It still has all of the functionality of version 2, and some newly added features as well. <br>
+Firstly, the WhichBrowser dependency has been removed since it was confusing for users. <br>
+The plugin now uses UAParser.js and some custom regex matching to display the same information. <br>
+The incognito detection has been improved thanks to Joe12387, and adblock detection is more accurate. <br>
+There is a dedicated settings page where you can input your own [ipinfo.io](https://ipinfo.io) API token. <br> 
+This page is also where you must input your signature token to allow for passwordless API calls. <br> 
+Lastly, there are charts that breakdown the devices, platforms, and browsers for all the clicks. <br> 
+This feature was inspired by [another plugin](https://github.com/AlbertoVargasMoreno/YOURLS-Device-Charts) that was actually inspired from this plugin.
+Note that if JavaScript is not enabled in the browser, then the click may be missed. <br> 
 
 ## Installation
-1. Install WhichBrowser to the root using `composer require whichbrowser/parser`.
-2. It is possible that you will have to change the path of `vendor/autoload.php`.
-3. In `/user/plugins`, create a new folder named `device-details`.
-4. Choose what version you want (see the two sections above to decide).
-5. Download the right `plugin.php` file from this git repo and drop it into step 3's directory.
-6. If you use version 2, make sure to also replace `/includes/functions.php` with the provided one.
-7. Go to the Plugins admin page (eg. `http://sho.rt/admin/plugins.php`) and activate it.
-8. Even if the admin area is private, you should make the link stats page public.
-9. Do this by adding `define('YOURLS_PRIVATE_INFOS', false);` to `config.php`.
+1. In `/user/plugins`, create a new folder named `device-details`.
+2. Download the `plugin.php`, `incognito.js`, and `uaparser.js` files from this repository.
+3. Add all three files into the newly created directory.
+4. Go to the Plugins admin page (eg. `http://sho.rt/admin/plugins.php`) and activate it.
+5. Even if the admin area is private, you can make the link stats page public.
+   - Do this by adding `define('YOURLS_PRIVATE_INFOS', false);` to `config.php`.
 
-I got a request to make this compatible with the [Download Plugin](https://github.com/krissss/yourls-download-plugin) plugin, so I will look more into it. Version 1 should be compatible, although it looks like I need to configure the branches of this repository a little bit differently.
+Alternatively, version 3 of this plugin is compatible with both [Download Plugins](https://github.com/krissss/yourls-download-plugin) and [Download Delete](https://github.com/SachinSAgrawal/YOURLS-Download-Delete), so copy and paste the URL of this repository and set the branch to be `main` to install it.
 
 ## Contributors
 Sachin Agrawal: I'm a self-taught programmer who knows many languages and I'm into app, game, and web development. For more information, check out my website or Github profile. If you would like to contact me, my email is [github@sachin.email](mailto:github@sachin.email).

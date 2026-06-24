@@ -5,7 +5,7 @@ Plugin URI: https://github.com/SachinSAgrawal/YOURLS-Device-Details
 Description: Parses user-agent using a custom library to display information about IP and device
 Version: 1.2
 Author: Sachin Agrawal
-Author URI: https://sachinagrawal.me
+Author URI: https://sachinsagrawal.github.io/
 */
 
 // Load the user-agent parsing library WhichBrowser
