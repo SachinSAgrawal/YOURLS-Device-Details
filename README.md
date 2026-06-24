@@ -18,7 +18,7 @@ Please make sure that you are following all local privacy laws while using this 
 This version uses WhichBrowser to parse the user-agent for device and browser information. <br>
 It also fetches the location of the click and local time based off of the IP address. <br>
 The information is displayed in a table in the stats page of each link below the click count graph. <br>
-If you really want to use this version, please check out the relevant installation instructions. <br>
+If you really want to use this version, please check out the relevant [installation instructions](/version1/installation.md). <br>
 All relevant files are in the `version1` folder, anything else is for the most recent version (see below).
 
 ### Version 2
@@ -38,8 +38,8 @@ The incognito detection has been improved thanks to Joe12387, and adblock detect
 There is a dedicated settings page where you can input your own [ipinfo.io](https://ipinfo.io) API token. <br> 
 This page is also where you must input your signature token to allow for passwordless API calls. <br> 
 Lastly, there are charts that breakdown the devices, platforms, and browsers for all the clicks. <br> 
-This feature was inspired by [another plugin](https://github.com/AlbertoVargasMoreno/YOURLS-Device-Charts) that was actually inspired from this plugin.
-Note that if JavaScript is not enabled in the browser, then the click may be missed. <br> 
+This feature was inspired by [another plugin](https://github.com/AlbertoVargasMoreno/YOURLS-Device-Charts) that was actually inspired from this plugin. <br> 
+Note that if JavaScript is not enabled in the browser, then the click may be missed.
 
 ## Installation
 1. In `/user/plugins`, create a new folder named `device-details`.
