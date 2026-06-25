@@ -7,7 +7,7 @@ Developed for Your Own URL Shortener ([YOURLS](https://yourls.org)) `v1.9.2` and
 
 ![screenshot](screenshot.png)
 
-Check it out on my own website: [yourls-device-details.dreamhosters.com](https://yourls-device-details.dreamhosters.com/). <br>
+Check it out on my own website: [yourls.dreamhosters.com](https://yourls.dreamhosters.com/). <br>
 I use the Sleeky theme, but the default works, although the table columns may get smushed.
 
 ## Usage
