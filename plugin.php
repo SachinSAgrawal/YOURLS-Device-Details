@@ -3,12 +3,40 @@
 Plugin Name: Device Details
 Plugin URI: https://github.com/SachinSAgrawal/YOURLS-Device-Details
 Description: Displays click details, including IP/location, device information, a parsed user-agent, and more
-Version: 3.2
+Version: 3.3
 Author: Sachin Agrawal
 Author URI: https://sachinsagrawal.github.io/
 */
 
 if ( !defined( 'YOURLS_ABSPATH' ) ) die();
+
+// Force a temporary redirect to prevent browser caching
+yourls_add_filter( 'redirect_code', 'dd_force_302_redirect' );
+function dd_force_302_redirect( $code, $location ) {
+    return 302;
+}
+
+// Ensure the 'information' column exists in the database
+yourls_add_action( 'plugins_loaded', 'dd_ensure_db_column' );
+function dd_ensure_db_column() {
+    // Prevent running a slow schema check on every single click
+    if ( yourls_get_option( 'dd_info_column_created' ) ) {
+        return; 
+    }
+
+    $table = YOURLS_DB_TABLE_LOG;
+    $db = yourls_get_db();
+    
+    $sql = "SHOW COLUMNS FROM `$table` LIKE 'information'";
+    $result = $db->fetchObjects($sql);
+    
+    if ( empty($result) ) {
+        $db->query("ALTER TABLE `$table` ADD `information` TEXT NULL;");
+    }
+    
+    // Set flag so this check never has to run again
+    yourls_add_option( 'dd_info_column_created', true );
+}
 
 // Add a settings page in the YOURLS admin interface
 yourls_add_action( 'plugins_loaded', 'dd_admin_page_init' );
@@ -75,15 +103,10 @@ function dd_settings_page_display() {
     echo "</main>";
 }
 
-// Prevent the native logging of clicks which doesn't require JavaScript
-yourls_add_filter( 'shunt_log_redirect', 'dd_prevent_native_logging' );
-function dd_prevent_native_logging( $return, $keyword ) {
-    return true; 
-}
-
 // Inject the device info collector script into the redirect page
 yourls_add_action( 'redirect_shorturl', 'dd_inject_collector_script' );
 function dd_inject_collector_script( $args ) {
+    $target_url = isset($args[0]) ? $args[0] : '';
     $keyword = isset($args[1]) ? yourls_sanitize_keyword( $args[1] ) : '';
     
     if ( empty($keyword) ) {
@@ -92,6 +115,9 @@ function dd_inject_collector_script( $args ) {
     }
     
     $plugin_url = yourls_plugin_url( dirname( __FILE__ ) );
+
+    // Manually trigger the native logg before PHP execution is halted
+    yourls_log_redirect( $keyword );
     
     // Generate a time-limited signature for the request
     $secret_token = yourls_get_option( 'dd_api_signature', '' );
@@ -101,127 +127,136 @@ function dd_inject_collector_script( $args ) {
     // Construct the endpoint with timestamp and temporary signature
     $endpoint = YOURLS_SITE . '/yourls-api.php?timestamp=' . $timestamp . '&signature=' . $time_sig . '&action=log_device_info&format=json';
     ?>
+    
+    <noscript><meta http-equiv="refresh" content="0;url=<?php echo htmlspecialchars($target_url); ?>" /></noscript>
+
     <script src="<?php echo $plugin_url; ?>/uaparser.js"></script>
     <script src="<?php echo $plugin_url; ?>/incognito.js"></script>
     
     <script>
     // Gather device information and parse user-agent
     (function() {
-        var keyword  = <?php echo json_encode( $keyword ); ?>;
-        var endpoint = <?php echo json_encode( $endpoint ); ?>;
-        
+        var keyword   = <?php echo json_encode( $keyword ); ?>;
+        var endpoint  = <?php echo json_encode( $endpoint ); ?>;
+        var targetUrl = <?php echo json_encode( $target_url ); ?>;
         var trueReferrer = document.referrer || 'direct';
 
         var payload = {
             la: navigator.language || '',
             or: typeof window.orientation !== 'undefined' ? window.orientation : '',
             to: ('ontouchstart' in window) || navigator.maxTouchPoints > 0 ? 'Yes' : 'No',
-            si: screen.width + 'x' + screen.height,
-            ba: '',
-            in: 'No',
-            ad: 'No',
-            os: '', br: '', dm: '', dv: '', dt: '', en: ''
+            si: `${screen.width}x${screen.height}`,
+            ba: '', in: 'No', ad: 'No', os: '', br: '', dm: '', dv: '', dt: '', en: ''
         };
 
+        // Parse the user-agent string if possible
         if (typeof UAParser !== 'undefined') {
-            var uap = new UAParser();
-            var result = uap.getResult();
-            payload.os = result.os.name ? result.os.name + (result.os.version ? ' ' + result.os.version : '') : '';
-            payload.br = result.browser.name ? result.browser.name + (result.browser.version ? ' ' + result.browser.version : '') : '';
+            var result = new UAParser().getResult();
+            
+            payload.os = result.os.name ? `${result.os.name} ${result.os.version || ''}`.trim() : '';
+            payload.br = result.browser.name ? `${result.browser.name} ${result.browser.version || ''}`.trim() : '';
+            payload.en = result.engine.name ? `${result.engine.name} ${result.engine.version || ''}`.trim() : '';
+            
             payload.dm = result.device.model || '';
             payload.dv = result.device.vendor || '';
             payload.dt = result.device.type || '';
-            payload.en = result.engine.name ? result.engine.name + (result.engine.version ? ' ' + result.engine.version : '') : '';
         }
 
-        var ADS_URL = "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js";
-        function detectAdBlock() {
-            return fetch(ADS_URL, { method: 'HEAD', mode: 'no-cors' })
-                .then(function() { payload.ad = 'No'; })
-                .catch(function() { payload.ad = 'Yes'; });
+        // Safely redirect the user to the final destination
+        function redirect() {
+            if (targetUrl) window.location.replace(targetUrl);
         }
 
-        // Send the collected information to the server via AJAX POST
+        // Send the collected information to the server, removing empty fields
         function sendDeviceInfo() {
             for (var key in payload) {
-                if (payload[key] === '' || payload[key] === null) {
+                if (payload[key] === '' || payload[key] == null) {
                     delete payload[key];
                 }
             }
-            
-            var jsonStr = JSON.stringify(payload);
 
-            fetch( endpoint, {
-                method:  'POST',
+            fetch(endpoint, {
+                method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body:    'keyword=' + encodeURIComponent( keyword ) +
-                         '&ref=' + encodeURIComponent( trueReferrer ) +
-                         '&deviceInfo=' + encodeURIComponent( jsonStr )
-            }).catch(function(e){}); 
+                body: new URLSearchParams({ 
+                    keyword: keyword, 
+                    ref: trueReferrer, 
+                    deviceInfo: JSON.stringify(payload) 
+                })
+            }).then(redirect).catch(redirect); 
         }
 
-        Promise.all([
-            detectAdBlock(),
-            (typeof detectIncognito !== 'undefined' ? detectIncognito().then(function(res) { 
-                payload.in = res.isPrivate ? 'Yes' : 'No'; 
-            }).catch(function(e){}) : Promise.resolve()),
-            ('getBattery' in navigator ? navigator.getBattery().then(function(b) { 
-                payload.ba = Math.round(b.level * 100) + '%'; 
-            }).catch(function(e){}) : Promise.resolve())
-        ]).then(function() {
+        // Ensure the tracking POST only fires once
+        var isRedirecting = false;
+        function finalAction() {
+            if (isRedirecting) return;
+            isRedirecting = true;
             sendDeviceInfo();
-        });
+        }
+
+        // Gather the asynchronous data
+        Promise.all([
+            fetch("https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js", { method: 'HEAD', mode: 'no-cors' })
+                .then(function() { payload.ad = 'No'; }).catch(function() { payload.ad = 'Yes'; }),
+                
+            typeof detectIncognito !== 'undefined' ? detectIncognito().then(function(res) { 
+                payload.in = res.isPrivate ? 'Yes' : 'No'; 
+            }).catch(function(){}) : Promise.resolve(),
+            
+            'getBattery' in navigator ? navigator.getBattery().then(function(b) { 
+                payload.ba = Math.round(b.level * 100) + '%'; 
+            }).catch(function(){}) : Promise.resolve()
+        ]).then(finalAction).catch(finalAction);
+
+        // Failsafe to redirect after 1.5 seconds in case the AJAX request hangs
+        setTimeout(finalAction, 1500);
     })();
     </script>
     <?php
+
+    // Terminate PHP to prevent YOURLS from running its native instant redirect
+    die();
 }
 
 // Register the AJAX endpoint to receive the device information
-yourls_add_action( 'api_action_log_device_info', 'dd_receive_device_info' );
-function dd_receive_device_info() {
+yourls_add_filter( 'api_action_log_device_info', 'dd_receive_device_info' );
+
+function dd_receive_device_info( $return ) {
     $keyword      = isset( $_POST['keyword'] )    ? yourls_sanitize_keyword( $_POST['keyword'] ) : '';
     $deviceinfo   = isset( $_POST['deviceInfo'] ) ? $_POST['deviceInfo'] : '{}';
     $original_ref = isset( $_POST['ref'] )        ? $_POST['ref'] : 'direct';
 
     if ( !$keyword ) {
-        yourls_send_json_error( [ 'message' => 'Missing keyword' ] );
+        return [ 'statusCode' => 400, 'message' => 'Missing keyword' ];
     }
 
     $table = YOURLS_DB_TABLE_LOG;
     $ip    = yourls_get_IP();
     
-    $marker   = ' - ';
-    $json_len = strlen($deviceinfo);
-    
-    $allowed_ref_len = 255 - strlen($marker) - $json_len;
-    
-    if ( $allowed_ref_len > 0 ) {
-        $actual_referrer = substr( $original_ref, 0, $allowed_ref_len );
-        $combined_referrer = $actual_referrer . $marker . $deviceinfo;
-    } else {
-        $combined_referrer = substr( $original_ref, 0, 10 ) . $marker . substr( $deviceinfo, 0, 240 );
-    }
+    $actual_referrer = substr( $original_ref, 0, 200 );
 
     $binds = [
-        'now'      => date( 'Y-m-d H:i:s' ),
-        'keyword'  => $keyword,
-        'referrer' => $combined_referrer,
-        'ua'       => substr( yourls_get_user_agent(), 0, 255 ),
-        'ip'       => $ip,
-        'location' => yourls_geo_ip_to_countrycode( $ip ),
+        'now'         => date( 'Y-m-d H:i:s' ),
+        'keyword'     => $keyword,
+        'referrer'    => $actual_referrer,
+        'ua'          => substr( yourls_get_user_agent(), 0, 255 ),
+        'ip'          => $ip,
+        'location'    => yourls_geo_ip_to_countrycode( $ip ),
+        'information' => $deviceinfo
     ];
 
-    // Insert the log entry into the database
+    // Update the existing log entry in the database
     try {
         $result = yourls_get_db()->fetchAffected(
-            "INSERT INTO `$table`
-             (click_time, shorturl, referrer, user_agent, ip_address, country_code)
-             VALUES (:now, :keyword, :referrer, :ua, :ip, :location)",
+            "UPDATE `$table`
+             SET `referrer` = :referrer, `user_agent` = :ua, `information` = :information
+             WHERE `shorturl` = :keyword AND `ip_address` = :ip
+             ORDER BY `click_time` DESC LIMIT 1",
             $binds
         );
-        yourls_send_json_success( [ 'message' => 'Logged successfully', 'rows' => $result ] );
+        return [ 'statusCode' => 200, 'message' => 'Logged successfully', 'rows' => $result ];
     } catch ( Exception $e ) {
-        yourls_send_json_error( [ 'message' => 'Database insertion error' ] );
+        return [ 'statusCode' => 500, 'message' => 'Database update error' ];
     }
 }
 
@@ -257,27 +292,13 @@ function get_ip_info($ip) {
 // Helper functions to convert timezone offsets
 function get_timezone_offset($timezone) {
     try {
-        $timezone_object = new DateTimeZone($timezone);
-        $datetime = new DateTime("now", $timezone_object);
-        return $timezone_object->getOffset($datetime) / 60;
-    } catch (Exception $e) {
-        return 0;
-    }
+        $tz = new DateTimeZone($timezone);
+        return $tz->getOffset(new DateTime("now", $tz)) / 60;
+    } catch (Exception $e) { return 0; }
 }
 
-function timezone_offset_to_gmt_offset($timezone_offset) {
-    $timezone_offset = intval($timezone_offset);
-    $sign = $timezone_offset < 0 ? '-' : '+';
-    
-    $abs_offset = abs($timezone_offset);
-    $hours = floor($abs_offset / 60);
-    $minutes = $abs_offset % 60;
-    
-    if ($minutes == 0) {
-        return 'GMT' . $sign . $hours;
-    } else {
-        return 'GMT' . $sign . $hours . ':' . sprintf("%02d", $minutes);
-    }
+function timezone_offset_to_gmt_offset($offset) {
+    return sprintf("GMT%+d%s", intdiv($offset, 60), ($offset % 60) ? sprintf(":%02d", abs($offset % 60)) : "");
 }
 
 // Display the information on the stats page
@@ -329,16 +350,22 @@ function dd_ip_detail_page($shorturl) {
             $gmt_offset = timezone_offset_to_gmt_offset($timezone_offset);
             
             $full_ref = $query_result->referrer;
-            $split_pos = strpos($full_ref, ' - {');
-            
-            if ($split_pos !== false) {
-                $real_ref = substr($full_ref, 0, $split_pos);
-                $json_str = substr($full_ref, $split_pos + 3);
-                $dev = json_decode($json_str, true);
+            $json_str = isset($query_result->information) ? $query_result->information : '';
+
+            // Fallback for older logs that still have data appended to the referrer
+            if (empty($json_str)) {
+                $split_pos = strpos($full_ref, ' - {');
+                if ($split_pos !== false) {
+                    $real_ref = substr($full_ref, 0, $split_pos);
+                    $json_str = substr($full_ref, $split_pos + 3);
+                } else {
+                    $real_ref = $full_ref;
+                }
             } else {
                 $real_ref = $full_ref;
-                $dev = [];
             }
+            
+            $dev = json_decode($json_str, true);
             if (!is_array($dev)) $dev = [];
 
             $dv = !empty($dev['dv']) ? trim($dev['dv']) : '';
@@ -346,16 +373,8 @@ function dd_ip_detail_page($shorturl) {
             $dt = !empty($dev['dt']) ? trim($dev['dt']) : '';
 
             // Custom logic to infer device type if not provided
-            if (empty($dt) && !empty($dev['os'])) {
-                $os_lower = strtolower($dev['os']);
-                $desktop_os_keywords = ['windows', 'macos', 'linux', 'ubuntu', 'chrome os', 'fedora'];
-                
-                foreach ($desktop_os_keywords as $keyword) {
-                    if (strpos($os_lower, $keyword) !== false) {
-                        $dt = 'desktop';
-                        break;
-                    }
-                }
+            if (empty($dt) && !empty($dev['os']) && preg_match('/windows|mac|linux|ubuntu|chrome os|fedora/i', $dev['os'])) {
+                $dt = 'desktop';
             }
 
             // Populate pie chart metrics directly
@@ -383,23 +402,15 @@ function dd_ip_detail_page($shorturl) {
             $browser_os_info .= !empty($dev['os']) ? '<br>' . $dev['os'] : '';
             
             // Format for the main stats table
-            if (empty($dv) && empty($dm) && empty($dt)) {
-                $device_info = 'Unknown';
-            } else {
-                $device_info = implode('<br>', array_filter([$dv, $dm, $dt]));
-            }
+            $device_info = implode('<br>', array_filter([$dv, $dm, $dt])) ?: 'Unknown';
             
             $engine_info = !empty($dev['en']) ? $dev['en'] : '';
 
-            $interaction_info = '';
-            $orientation = (isset($dev['or']) && is_numeric($dev['or'])) ? $dev['or'] : '';
-            $interaction_info .= $orientation !== '' ? 'Rot:&nbsp;' . $orientation : '';
-            
-            $touch = !empty($dev['to']) ? $dev['to'] : '';
-            $interaction_info .= $touch !== '' ? ($interaction_info !== '' ? '<br>' : '') . 'Touch:&nbsp;' . $touch : '';
-            
-            $size = !empty($dev['si']) ? $dev['si'] : '';
-            $interaction_info .= $size !== '' ? ($interaction_info !== '' ? '<br>' : '') . 'Size:&nbsp;' . $size : '';
+            $interactions = [];
+            if (isset($dev['or']) && is_numeric($dev['or'])) $interactions[] = 'Rot:&nbsp;' . $dev['or'];
+            if (!empty($dev['to'])) $interactions[] = 'Touch:&nbsp;' . $dev['to'];
+            if (!empty($dev['si'])) $interactions[] = 'Size:&nbsp;' . $dev['si'];
+            $interaction_info = implode('<br>', $interactions);
 
             $lang = !empty($dev['la']) ? $dev['la'] : '';
             $batt = !empty($dev['ba']) ? $dev['ba'] : 'undef';
@@ -413,23 +424,25 @@ function dd_ip_detail_page($shorturl) {
             }
             $other_info = implode('<br>', $other_metrics);
 
-            // Build the HTML table row for this click
-            $outdata .= '<tr'.$row_style.'>
-                        <td>'.$timestamp_display.'</td>
-                        <td>'.$local_time_info.'</td>
-                        <td>'.$location_info.'</td>
-                        <td>'.$isp.'</td>
-                        <td><a href="https://ipinfo.io/'.$query_result->ip_address.'" target="blank">'.$query_result->ip_address.'</a>'.$current_ip_label.'</td>
-                        <td style="max-width:300px; word-wrap:break-word; word-break:break-word; font-size:0.85em;">'.$ua.'</td>
-                        <td>'.$browser_os_info.'</td>
-                        <td>'.$device_info.'</td>
-                        <td>'.$engine_info.'</td>
-                        <td>'.$real_ref.'</td>
-                        <td>'.$interaction_info.'</td>
-                        <td>'.$lang.'</td>
-                        <td>'.$batt.'</td>
-                        <td>'.$other_info.'</td>
-                        </tr>';
+            $is_ghost = empty($json_str);
+            $ghost_attr = $is_ghost ? ' data-ghost="true" data-ua="' . htmlspecialchars($ua, ENT_QUOTES) . '"' : '';
+
+            // Build the HTML table row for this click, combining the last 4 columns if JavaScript didn't run
+            $outdata .= '<tr'.$row_style.$ghost_attr.'>
+                <td>'.$timestamp_display.'</td>
+                <td>'.$local_time_info.'</td>
+                <td>'.$location_info.'</td>
+                <td>'.$isp.'</td>
+                <td><a href="https://ipinfo.io/'.$query_result->ip_address.'" target="blank">'.$query_result->ip_address.'</a>'.$current_ip_label.'</td>
+                <td style="max-width:300px; word-wrap:break-word; font-size:0.85em;">'.$ua.'</td>
+                <td>'.$browser_os_info.'</td>
+                <td>'.$device_info.'</td>
+                <td>'.$engine_info.'</td>
+                <td>'.$real_ref.'</td>
+                ' . ($is_ghost 
+                    ? '<td colspan="4" style="text-align:center; font-style:italic; color:#777;">Extended information unavailable: JavaScript may <br>have been disabled or this plugin was not running</td>' 
+                    : "<td>$interaction_info</td><td>$lang</td><td>$batt</td><td>$other_info</td>") . '
+            </tr>';
         }
 
         // Sort data descending for the charts
@@ -444,6 +457,28 @@ function dd_ip_detail_page($shorturl) {
                     <td>IP Address</td><td>User Agent</td><td>Browser/OS</td><td>Device</td><td>Engine</td><td>Referrer</td>
                     <td>Screen</td><td>Language</td><td>Battery</td><td>Other</td>
                 </tr>' . $outdata . '</table><br>' . "\n\r";
+
+        // Inject UAParser.js to retroactively parse ghost clicks on the client side
+        $plugin_url = yourls_plugin_url( dirname( __FILE__ ) );
+        echo '<script src="' . $plugin_url . '/uaparser.js"></script>
+        <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            if (typeof UAParser === "undefined") return;
+            
+            document.querySelectorAll("tr[data-ghost=\'true\']").forEach(row => {
+                const r = new UAParser(row.dataset.ua).getResult();
+                const format = (n, v) => n ? `${n} ${v || \'\'}`.trim() : \'\';
+                const dt = r.device.type || (/windows|mac|linux|ubuntu|chrome os|fedora/i.test(r.os.name||\'\') ? "desktop" : "");
+                
+                const cells = row.querySelectorAll("td");
+                if (cells.length > 8) {
+                    cells[6].innerHTML = `${format(r.browser.name, r.browser.version)}<br>${format(r.os.name, r.os.version)}`;
+                    cells[7].innerHTML = [r.device.vendor, r.device.model, dt].filter(Boolean).join("<br>") || "Unknown";
+                    cells[8].innerHTML = format(r.engine.name, r.engine.version);
+                }
+            });
+        });
+        </script>';
 
         // Output the pie charts
         echo "<br><br>";

@@ -29,17 +29,21 @@ Additionally, the way the data was transferred from the browser meant that it wa
 
 ### Version 3
 This version tracks everything from version 3, but does it does so without hacking core files. <br>
-Namely, the normal logging is skipped and the client side information is sent to yourls_log via AJAX. <br>
-I cannot take credit for this, as it was [Loganathan](https://github.com/logusivam) who gave me the reference code. <br>
-It still has all of the functionality of version 2, and some newly added features as well. <br>
+Instead, the client side information is collected with Javascript and sent to yourls_log via AJAX. <br>
+Specifically, a new column gets created and appended to specifically for this information. <br>
+I cannot take credit for all of this, as it was [Loganathan](https://github.com/logusivam) who gave me the reference code. <br>
+Version 3 still has all of the functionality as the previous, and some newly added features as well. <br>
 Firstly, the WhichBrowser dependency has been removed since it was confusing for users. <br>
-The plugin now uses UAParser.js and some custom regex matching to display the same information. <br>
-The incognito detection has been improved thanks to Joe12387, and adblock detection is more accurate. <br>
+The plugin now uses `UAParser.js` and some custom regex matching to display the same information. <br>
+The incognito detection is much better thanks to Joe12387, and adblock detection is more accurate. <br>
 There is a dedicated settings page where you can input your own [ipinfo.io](https://ipinfo.io) API token. <br> 
 This page is also where you must input your signature token to allow for passwordless API calls. <br> 
+A temporary 302 redirect is sent to help ensure that every click is accounted for. <br> 
 Lastly, there are charts that breakdown the devices, platforms, and browsers for all the clicks. <br> 
 This feature was inspired by [another plugin](https://github.com/AlbertoVargasMoreno/YOURLS-Device-Charts) that was actually inspired from this plugin. <br> 
-Note that if JavaScript is not enabled in the browser, then the click may be missed.
+Note that if JavaScript is not enabled in the browser, the click should still be logged. <br>
+However, the extended information introduced in version 2 will unfortunately not be. <br>
+The click will also show up as 'Unknown' in the charts due to how they are rendered. <br>
 
 ## Installation
 1. In `/user/plugins`, create a new folder named `device-details`.
@@ -48,6 +52,8 @@ Note that if JavaScript is not enabled in the browser, then the click may be mis
 4. Go to the Plugins admin page (eg. `http://sho.rt/admin/plugins.php`) and activate it.
 5. Even if the admin area is private, you can make the link stats page public.
    - Do this by adding `define('YOURLS_PRIVATE_INFOS', false);` to `config.php`.
+6. If you are worried about the passwordless API calls, you can decrease the nonce life.
+   - Do this by adding `define('YOURLS_NONCE_LIFE', 7200);` to `config.php`.
 
 Alternatively, version 3 of this plugin is compatible with both [Download Plugins](https://github.com/krissss/yourls-download-plugin) and [Download Delete](https://github.com/SachinSAgrawal/YOURLS-Download-Delete), so copy and paste the URL of this repository and set the branch to be `main` to install it.
 
