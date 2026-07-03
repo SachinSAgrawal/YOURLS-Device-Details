@@ -41,7 +41,7 @@ function dd_ensure_db_column() {
 // Add a settings page in the YOURLS admin interface
 yourls_add_action( 'plugins_loaded', 'dd_admin_page_init' );
 function dd_admin_page_init() {
-    yourls_register_plugin_page( 'dd_settings', 'Device Details Settings', 'dd_settings_page_display' );
+    yourls_register_plugin_page( 'device_details_settings', 'Device Details Settings', 'dd_settings_page_display' );
 }
 
 // Display the settings page with a form to input tokens
@@ -304,6 +304,12 @@ function timezone_offset_to_gmt_offset($offset) {
 // Display the information on the stats page
 yourls_add_action('post_yourls_info_stats', 'dd_ip_detail_page');
 function dd_ip_detail_page($shorturl) {
+    $theme_choice = yourls_get_option( 'theme_choice', 'light' );
+    $is_dark      = ( $theme_choice === 'dark' );
+    
+    $c_header_bg = $is_dark ? '#232323' : '#f1f1f1';
+    $c_highlight = $is_dark ? '#052c46' : '#d4eeff';
+
     $table_log = YOURLS_DB_TABLE_LOG;
     $outdata   = '';
 
@@ -325,7 +331,7 @@ function dd_ip_detail_page($shorturl) {
             $current_ip_label = "";
             
             if ($query_result->ip_address == yourls_get_IP()) {
-                $row_style = " bgcolor='#d4eeff'";
+                $row_style = " style='background-color: {$c_highlight}'";
                 $current_ip_label = "<br><i>This is Your IP</i>";
             }
 
@@ -452,7 +458,7 @@ function dd_ip_detail_page($shorturl) {
 
         // Output the complete HTML table
         echo '<table border="1" cellpadding="5" style="margin-top:25px; border-collapse:collapse; text-align:left;">
-                <tr style="background:#f1f1f1; font-weight:bold;">
+                <tr style="background:'.$c_header_bg.'; font-weight:bold;">
                     <td>Timestamp</td><td>Local Time</td><td>Location</td><td>ISP</td>
                     <td>IP Address</td><td>User Agent</td><td>Browser/OS</td><td>Device</td><td>Engine</td><td>Referrer</td>
                     <td>Screen</td><td>Language</td><td>Battery</td><td>Other</td>
@@ -480,8 +486,9 @@ function dd_ip_detail_page($shorturl) {
         });
         </script>';
 
+        echo "<br>";
+
         // Output the pie charts
-        echo "<br><br>";
         echo generate_open_table_html();
             echo generate_open_chartContainer_html(yourls_translate("Devices"));
             yourls_stats_pie( $device_dataseries, 4, '340x220', 'devices_pie' );
