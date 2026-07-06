@@ -116,8 +116,9 @@ function dd_inject_collector_script( $args ) {
     
     $plugin_url = yourls_plugin_url( dirname( __FILE__ ) );
 
-    // Manually trigger the native logg before PHP execution is halted
+    // Manually trigger the native logging and click count before PHP execution is halted
     yourls_log_redirect( $keyword );
+    yourls_update_clicks( $keyword );
     
     // Generate a time-limited signature for the request
     $secret_token = yourls_get_option( 'dd_api_signature', '' );
