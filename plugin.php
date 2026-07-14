@@ -3,7 +3,7 @@
 Plugin Name: Device Details
 Plugin URI: https://github.com/SachinSAgrawal/YOURLS-Device-Details
 Description: Displays click details, including IP/location, device information, a parsed user-agent, and more
-Version: 3.3
+Version: 4.0
 Author: Sachin Agrawal
 Author URI: https://sachinsagrawal.github.io/
 */
@@ -142,13 +142,45 @@ function dd_inject_collector_script( $args ) {
         var targetUrl = <?php echo json_encode( $target_url ); ?>;
         var trueReferrer = document.referrer || 'direct';
 
+        // Orientation using the modern screen.orientation API with a legacy fallback
+        var orientationVal = '';
+        if (screen.orientation && screen.orientation.type) {
+            orientationVal = screen.orientation.type;
+        } else if (typeof window.orientation === 'number') {
+            orientationVal = String(window.orientation);
+        }
+
+        // Do Not Track normalized across the various vendor prefixes
+        var dntRaw = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+        var dntVal = (dntRaw === '1' || dntRaw === 'yes') ? 'Enabled' : 'Disabled';
+
         var payload = {
             la: navigator.language || '',
-            or: typeof window.orientation !== 'undefined' ? window.orientation : '',
+            re: '',
+            or: orientationVal,
             to: ('ontouchstart' in window) || navigator.maxTouchPoints > 0 ? 'Yes' : 'No',
             si: `${screen.width}x${screen.height}`,
-            ba: '', in: 'No', ad: 'No', os: '', br: '', dm: '', dv: '', dt: '', en: ''
+            us: `${screen.availWidth}x${screen.availHeight}`,
+            co: navigator.cookieEnabled ? 'Yes' : 'No',
+            dn: dntVal,
+            gp: '',
+            cp: navigator.hardwareConcurrency ? String(navigator.hardwareConcurrency) : '',
+            rm: navigator.deviceMemory ? navigator.deviceMemory + ' GB' : '',
+            ba: '', ch: '', in: 'No', ad: 'No', os: '', br: '', dm: '', dv: '', dt: '', en: ''
         };
+
+        // Region from the resolved Intl timezone
+        try { payload.re = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) {}
+
+        // GPU renderer via the WebGL debug info extension
+        try {
+            var glCanvas = document.createElement('canvas');
+            var glCtx = glCanvas.getContext('webgl') || glCanvas.getContext('experimental-webgl');
+            if (glCtx) {
+                var dbg = glCtx.getExtension('WEBGL_debug_renderer_info');
+                if (dbg) payload.gp = glCtx.getParameter(dbg.UNMASKED_RENDERER_WEBGL) || '';
+            }
+        } catch (e) {}
 
         // Parse the user-agent string if possible
         if (typeof UAParser !== 'undefined') {
@@ -204,8 +236,9 @@ function dd_inject_collector_script( $args ) {
                 payload.in = res.isPrivate ? 'Yes' : 'No'; 
             }).catch(function(){}) : Promise.resolve(),
             
-            'getBattery' in navigator ? navigator.getBattery().then(function(b) { 
-                payload.ba = Math.round(b.level * 100) + '%'; 
+            'getBattery' in navigator ? navigator.getBattery().then(function(b) {
+                payload.ba = Math.round(b.level * 100) + '%';
+                payload.ch = b.charging ? 'Yes' : 'No';
             }).catch(function(){}) : Promise.resolve()
         ]).then(finalAction).catch(finalAction);
 
@@ -375,6 +408,9 @@ function dd_ip_detail_page($shorturl) {
             $dev = json_decode($json_str, true);
             if (!is_array($dev)) $dev = [];
 
+            // A ghost click never recorded JS metrics so its charts data is parsed client side by UAParser
+            $is_ghost = empty($json_str);
+
             $dv = !empty($dev['dv']) ? trim($dev['dv']) : '';
             $dm = !empty($dev['dm']) ? trim($dev['dm']) : '';
             $dt = !empty($dev['dt']) ? trim($dev['dt']) : '';
@@ -384,14 +420,17 @@ function dd_ip_detail_page($shorturl) {
                 $dt = 'desktop';
             }
 
-            // Populate pie chart metrics directly
+            // Populate pie chart metrics from the stored data
             $device_type = !empty($dt) ? $dt : 'Unknown';
             $browser_name = !empty($dev['br']) ? trim(preg_replace('/ [0-9][0-9\.]*.*$/', '', $dev['br'])) : 'Unknown';
             $os_name = !empty($dev['os']) ? trim(preg_replace('/ [0-9][0-9\.]*.*$/', '', $dev['os'])) : 'Unknown';
 
-            $device_dataseries = count_distinct_categories($device_type, $device_dataseries);
-            $browser_dataseries = count_distinct_categories($browser_name, $browser_dataseries);
-            $platforms_dataseries = count_distinct_categories($os_name, $platforms_dataseries);
+            // Only tally clicks that recorded metrics since ghost clicks are folded in client side by UAParser
+            if (!$is_ghost) {
+                $device_dataseries = count_distinct_categories($device_type, $device_dataseries);
+                $browser_dataseries = count_distinct_categories($browser_name, $browser_dataseries);
+                $platforms_dataseries = count_distinct_categories($os_name, $platforms_dataseries);
+            }
             
             $local_time_info = $gmt_offset . '<br>' . $local_time;
             
@@ -405,36 +444,53 @@ function dd_ip_detail_page($shorturl) {
                 $isp = preg_replace('/^(\S+)\s+(.*)$/', '$1<br>$2', trim($ip_info['org']));
             }
             
-            $browser_os_info = !empty($dev['br']) ? $dev['br'] : '';
-            $browser_os_info .= !empty($dev['os']) ? '<br>' . $dev['os'] : '';
-            
-            // Format for the main stats table
-            $device_info = implode('<br>', array_filter([$dv, $dm, $dt])) ?: 'Unknown';
-            
-            $engine_info = !empty($dev['en']) ? $dev['en'] : '';
+            // Browser column pairs the browser with its engine
+            $browser_info = !empty($dev['br']) ? $dev['br'] : '';
+            $browser_info .= !empty($dev['en']) ? '<br>' . $dev['en'] : '';
+
+            // Device column lists the device details and operating system
+            $os_line = !empty($dev['os']) ? $dev['os'] : '';
+            $device_info = implode('<br>', array_filter([$dv, $dm, $dt, $os_line])) ?: 'Unknown';
 
             $interactions = [];
-            if (isset($dev['or']) && is_numeric($dev['or'])) $interactions[] = 'Rot:&nbsp;' . $dev['or'];
+            if (!empty($dev['or'])) $interactions[] = 'Orient:&nbsp;' . $dev['or'];
             if (!empty($dev['to'])) $interactions[] = 'Touch:&nbsp;' . $dev['to'];
             if (!empty($dev['si'])) $interactions[] = 'Size:&nbsp;' . $dev['si'];
+            if (!empty($dev['us'])) $interactions[] = 'Usable:&nbsp;' . $dev['us'];
             $interaction_info = implode('<br>', $interactions);
 
-            $lang = !empty($dev['la']) ? $dev['la'] : '';
-            $batt = !empty($dev['ba']) ? $dev['ba'] : 'undef';
-            
-            $other_metrics = [];
-            if (!empty($dev['in'])) {
-                $other_metrics[] = 'Incognito:&nbsp;' . $dev['in'];
-            }
-            if (!empty($dev['ad'])) {
-                $other_metrics[] = 'AdBlock:&nbsp;' . $dev['ad'];
-            }
-            $other_info = implode('<br>', $other_metrics);
+            // Locale labels the language and region with a break inserted after the slash
+            $locale_parts = [];
+            if (!empty($dev['la'])) $locale_parts[] = 'Lang:&nbsp;' . $dev['la'];
+            if (!empty($dev['re'])) $locale_parts[] = 'Region:&nbsp;' . str_replace('/', '/<br>', $dev['re']);
+            $locale_info = implode('<br>', $locale_parts);
 
-            $is_ghost = empty($json_str);
+            // Battery shows the level and whether it is charging
+            $battery_parts = [];
+            if (!empty($dev['ba'])) $battery_parts[] = 'Level:&nbsp;' . $dev['ba'];
+            if (!empty($dev['ch'])) $battery_parts[] = 'Charging:&nbsp;' . $dev['ch'];
+            $batt = !empty($battery_parts) ? implode('<br>', $battery_parts) : 'undef';
+
+            // Hardware lists the GPU renderer, logical cores and approximate RAM
+            $hw_metrics = [];
+            if (!empty($dev['gp'])) $hw_metrics[] = 'GPU:&nbsp;' . $dev['gp'];
+            if (!empty($dev['cp'])) $hw_metrics[] = 'CPU:&nbsp;' . $dev['cp'] . ' Cores';
+            if (!empty($dev['rm'])) $hw_metrics[] = 'RAM:&nbsp;' . $dev['rm'];
+
+            // Older clicks predate these fields so flag the gap instead of leaving it blank
+            $hw_info = !empty($hw_metrics) ? implode('<br>', $hw_metrics) : '<i style="color:#777; display:block; text-align:center;">Not Captured</i>';
+
+            // Preferences combines ad block, incognito, cookies and DNT into a single column
+            $pref_metrics = [];
+            if (!empty($dev['in'])) $pref_metrics[] = 'Incognito:&nbsp;' . $dev['in'];
+            if (!empty($dev['ad'])) $pref_metrics[] = 'AdBlock:&nbsp;' . $dev['ad'];
+            if (!empty($dev['co'])) $pref_metrics[] = 'Cookies:&nbsp;' . $dev['co'];
+            if (!empty($dev['dn'])) $pref_metrics[] = 'DNT:&nbsp;' . $dev['dn'];
+            $pref_info = implode('<br>', $pref_metrics);
+
             $ghost_attr = $is_ghost ? ' data-ghost="true" data-ua="' . htmlspecialchars($ua, ENT_QUOTES) . '"' : '';
 
-            // Build the HTML table row for this click, combining the last 4 columns if JavaScript didn't run
+            // Build the HTML table row for this click, combining the last 5 columns if JavaScript didn't run
             $outdata .= '<tr'.$row_style.$ghost_attr.'>
                 <td>'.$timestamp_display.'</td>
                 <td>'.$local_time_info.'</td>
@@ -442,13 +498,12 @@ function dd_ip_detail_page($shorturl) {
                 <td>'.$isp.'</td>
                 <td><a href="https://ipinfo.io/'.$query_result->ip_address.'" target="blank">'.$query_result->ip_address.'</a>'.$current_ip_label.'</td>
                 <td style="max-width:300px; word-wrap:break-word; font-size:0.85em;">'.$ua.'</td>
-                <td>'.$browser_os_info.'</td>
+                <td>'.$browser_info.'</td>
                 <td>'.$device_info.'</td>
-                <td>'.$engine_info.'</td>
                 <td>'.$real_ref.'</td>
-                ' . ($is_ghost 
-                    ? '<td colspan="4" style="text-align:center; font-style:italic; color:#777;">Extended information unavailable: JavaScript may <br>have been disabled or this plugin was not running</td>' 
-                    : "<td>$interaction_info</td><td>$lang</td><td>$batt</td><td>$other_info</td>") . '
+                ' . ($is_ghost
+                    ? '<td colspan="5" style="text-align:center; font-style:italic; color:#777;">Extended information unavailable: JavaScript may <br>have been disabled or this plugin was not running</td>'
+                    : "<td>$interaction_info</td><td>$locale_info</td><td>$batt</td><td>$pref_info</td><td>$hw_info</td>") . '
             </tr>';
         }
 
@@ -461,9 +516,16 @@ function dd_ip_detail_page($shorturl) {
         echo '<table border="1" cellpadding="5" style="margin-top:25px; border-collapse:collapse; text-align:left;">
                 <tr style="background:'.$c_header_bg.'; font-weight:bold;">
                     <td>Timestamp</td><td>Local Time</td><td>Location</td><td>ISP</td>
-                    <td>IP Address</td><td>User Agent</td><td>Browser/OS</td><td>Device</td><td>Engine</td><td>Referrer</td>
-                    <td>Screen</td><td>Language</td><td>Battery</td><td>Other</td>
+                    <td>IP Address</td><td>User Agent</td><td>Browser</td><td>Device</td><td>Referrer</td>
+                    <td>Screen</td><td>Locale</td><td>Battery</td><td>Preferences</td><td>Hardware</td>
                 </tr>' . $outdata . '</table><br>' . "\n\r";
+
+        // Base chart tallies from clicks that recorded metrics with ghost clicks added on top client side by UAParser
+        $dd_base_charts = json_encode([
+            'devices_pie'   => (object) $device_dataseries,
+            'browsers_pie'  => (object) $browser_dataseries,
+            'platforms_pie' => (object) $platforms_dataseries,
+        ]);
 
         // Inject UAParser.js to retroactively parse ghost clicks on the client side
         $plugin_url = yourls_plugin_url( dirname( __FILE__ ) );
@@ -471,19 +533,84 @@ function dd_ip_detail_page($shorturl) {
         <script>
         document.addEventListener("DOMContentLoaded", () => {
             if (typeof UAParser === "undefined") return;
-            
+
+            // Tallies from clicks that already had metrics ghost clicks get folded in below
+            const charts = ' . $dd_base_charts . ';
+            let ghostCount = 0;
+
+            // Match the server ucfirst and empty to Unknown rules so categories land in the same buckets
+            const norm = v => { v = (v || "").trim(); return v === "" ? "Unknown" : v.charAt(0).toUpperCase() + v.slice(1); };
+            const bump = (obj, key) => { obj[key] = (obj[key] || 0) + 1; };
+
             document.querySelectorAll("tr[data-ghost=\'true\']").forEach(row => {
                 const r = new UAParser(row.dataset.ua).getResult();
                 const format = (n, v) => n ? `${n} ${v || \'\'}`.trim() : \'\';
                 const dt = r.device.type || (/windows|mac|linux|ubuntu|chrome os|fedora/i.test(r.os.name||\'\') ? "desktop" : "");
-                
+
                 const cells = row.querySelectorAll("td");
-                if (cells.length > 8) {
-                    cells[6].innerHTML = `${format(r.browser.name, r.browser.version)}<br>${format(r.os.name, r.os.version)}`;
-                    cells[7].innerHTML = [r.device.vendor, r.device.model, dt].filter(Boolean).join("<br>") || "Unknown";
-                    cells[8].innerHTML = format(r.engine.name, r.engine.version);
+                if (cells.length > 7) {
+                    cells[6].innerHTML = `${format(r.browser.name, r.browser.version)}<br>${format(r.engine.name, r.engine.version)}`;
+                    const deviceLine = [r.device.vendor, r.device.model, dt].filter(Boolean).join("<br>") || "Unknown";
+                    const osLine = format(r.os.name, r.os.version);
+                    cells[7].innerHTML = osLine ? `${deviceLine}<br>${osLine}` : deviceLine;
+                }
+
+                // Fold this ghost click into the tallies using the same fields UAParser fed the table
+                bump(charts.devices_pie,   norm(dt));
+                bump(charts.browsers_pie,  norm(r.browser.name));
+                bump(charts.platforms_pie, norm(r.os.name));
+                ghostCount++;
+            });
+
+            // Every click already had metrics so the server charts are already correct
+            if (ghostCount === 0) return;
+
+            // Rebuild each legend now since these do not depend on Google Charts
+            Object.keys(charts).forEach(id => {
+                const sorted = Object.entries(charts[id]).sort((a, b) => b[1] - a[1]);
+                const legend = document.getElementById("dd-legend-" + id);
+                if (legend) {
+                    legend.innerHTML = sorted.map(([name, count]) =>
+                        `<li class="sites_list">${name}: <strong>${count}</strong></li>`).join("");
                 }
             });
+
+            // Same palette yourls_stats_pie uses so the redrawn pies match the rest of the page
+            const colors = [\'A8D0ED\',\'99C4E4\',\'8AB8DB\',\'7BACD2\',\'6BA1C9\',\'5C95C0\',\'4D89B7\',\'3E7DAE\',\'2E72A5\',\'1F669C\'];
+
+            const redraw = () => {
+                Object.keys(charts).forEach(id => {
+                    const div = document.getElementById("visualization_" + id);
+                    if (!div || !window.google || !google.visualization || !google.visualization.PieChart) return;
+
+                    const sorted = Object.entries(charts[id]).sort((a, b) => b[1] - a[1]);
+
+                    // Trim to the top four plus an Others slice to match the server pie
+                    const top = sorted.slice(0, 4);
+                    const others = sorted.slice(4).reduce((sum, entry) => sum + entry[1], 0);
+                    const rows = [["Country", "Value"]].concat(top.map(entry => [entry[0], entry[1]]));
+                    if (others > 0) rows.push(["Others", others]);
+
+                    new google.visualization.PieChart(div).draw(
+                        google.visualization.arrayToDataTable(rows),
+                        { theme: "maximized", width: 340, height: 220, colors: colors,
+                          legend: "none", chartArea: {top: "5%", height: "90%"}, pieSliceText: "label" }
+                    );
+                });
+            };
+
+            // Draw after Google loads so our merged data replaces the server pie rather than the reverse
+            if (window.google && google.visualization && google.visualization.PieChart) {
+                redraw();
+            } else if (window.google && google.setOnLoadCallback) {
+                google.setOnLoadCallback(redraw);
+            } else {
+                let tries = 0;
+                (function wait() {
+                    if (window.google && google.visualization && google.visualization.PieChart) redraw();
+                    else if (tries++ < 100) setTimeout(wait, 100);
+                })();
+            }
         });
         </script>';
 
@@ -493,15 +620,15 @@ function dd_ip_detail_page($shorturl) {
         echo generate_open_table_html();
             echo generate_open_chartContainer_html(yourls_translate("Devices"));
             yourls_stats_pie( $device_dataseries, 4, '340x220', 'devices_pie' );
-            echo generate_close_chartContainer_html($device_dataseries);            
+            echo generate_close_chartContainer_html($device_dataseries, 'devices_pie');
 
             echo generate_open_chartContainer_html(yourls_translate("Browsers"));
             yourls_stats_pie( $browser_dataseries, 4, '340x220', 'browsers_pie' );
-            echo generate_close_chartContainer_html($browser_dataseries);            
+            echo generate_close_chartContainer_html($browser_dataseries, 'browsers_pie');
 
             echo generate_open_chartContainer_html(yourls_translate("Platforms"));
             yourls_stats_pie( $platforms_dataseries, 4, '340x220', 'platforms_pie' );
-            echo generate_close_chartContainer_html($platforms_dataseries);
+            echo generate_close_chartContainer_html($platforms_dataseries, 'platforms_pie');
         echo generate_close_table_html();
     }
 }
@@ -546,9 +673,10 @@ function generate_open_chartContainer_html(string $chart_name) : string {
     return $cardHtml;
 }
 
-function generate_close_chartContainer_html(array $dataseries): string {
+function generate_close_chartContainer_html(array $dataseries, string $chart_id = ''): string {
+    // The ID lets the client rebuild this legend after UAParser folds in the ghost clicks
     $cardFooterHtml = <<<HTML
-            <ul class="no_bullet">
+            <ul class="no_bullet" id="dd-legend-{$chart_id}">
     HTML;
     foreach ($dataseries as $group_name => $count) {
         $cardFooterHtml .= <<<HTML

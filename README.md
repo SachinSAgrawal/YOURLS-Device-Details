@@ -28,7 +28,7 @@ However, it is no longer available (i.e. removed from this repository) because i
 Additionally, the way the data was transferred from the browser meant that it was always one click behind.
 
 ### Version 3
-This version tracks everything from version 3, but does it does so without hacking core files. <br>
+This version tracks everything from version 2, but does it does so without hacking core files. <br>
 Instead, the client side information is collected with Javascript and sent to yourls_log via AJAX. <br>
 Specifically, a new column gets created and appended to specifically for this information. <br>
 I cannot take credit for all of this, as it was [Loganathan](https://github.com/logusivam) who gave me the reference code. <br>
@@ -43,7 +43,16 @@ Lastly, there are charts that breakdown the devices, platforms, and browsers for
 This feature was inspired by [another plugin](https://github.com/AlbertoVargasMoreno/YOURLS-Device-Charts) that was actually inspired from this plugin. <br> 
 Note that if JavaScript is not enabled in the browser, the click should still be logged. <br>
 However, the extended information introduced in version 2 will unfortunately not be. <br>
-The click will also show up as 'Unknown' in the charts due to how they are rendered. <br>
+The click will also show up as 'Unknown' in the charts due to how they are rendered.
+
+### Version 4
+This version is not nearly as extensive as version 3, but has some notable improvements. <br>
+First, it fixes the fact that clicks without extended metrics show up as 'Unknown' in charts. <br>
+There is an `uninstall.php` script that deletes the stored options and information. <br>
+Since that script runs upon deactivation, there is a flag to prevent data loss. <br>
+Lastly, even more metrics are collected client side with Javascript to be logged. <br>
+This includes hardware information, user preferences, and extended display data. <br>
+All data generated with version 3 will still be rendered without any compatibility issues.
 
 ## Installation
 1. In `/user/plugins`, create a new folder named `device-details`.
@@ -56,6 +65,10 @@ The click will also show up as 'Unknown' in the charts due to how they are rende
    - Do this by adding `define('YOURLS_NONCE_LIFE', 7200);` to `config.php`.
 
 Alternatively, version 3 of this plugin is compatible with both [Download Plugins](https://github.com/krissss/yourls-download-plugin) and [Download Delete](https://github.com/SachinSAgrawal/YOURLS-Download-Delete), so copy and paste the URL of this repository and set the branch to be `main` to install it.
+
+## To-Do List
+- [] Support [uaparser.min.js](https://docs.uaparser.dev/intro/quick-start/using-html.html)
+- [] Support [incognito.min.js](https://github.com/Joe12387/detectIncognito#usage)
 
 ## Contributors
 Sachin Agrawal: I'm a self-taught programmer who knows many languages and I'm into app, game, and web development. For more information, check out my website or Github profile. If you would like to contact me, my email is [github@sachin.email](mailto:github@sachin.email).
