@@ -67,8 +67,7 @@ All data generated with version 3 will still be rendered without any compatibili
 Alternatively, version 3 of this plugin is compatible with both [Download Plugins](https://github.com/krissss/yourls-download-plugin) and [Download Delete](https://github.com/SachinSAgrawal/YOURLS-Download-Delete), so copy and paste the URL of this repository and set the branch to be `main` to install it.
 
 ## To-Do List
-- [] Support [uaparser.min.js](https://docs.uaparser.dev/intro/quick-start/using-html.html)
-- [] Support [incognito.min.js](https://github.com/Joe12387/detectIncognito#usage)
+- [ ] Support [uaparser.min.js](https://docs.uaparser.dev/intro/quick-start/using-html.html) and [incognito.min.js](https://github.com/Joe12387/detectIncognito#usage)
 
 ## Contributors
 Sachin Agrawal: I'm a self-taught programmer who knows many languages and I'm into app, game, and web development. For more information, check out my website or Github profile. If you would like to contact me, my email is [github@sachin.email](mailto:github@sachin.email).
